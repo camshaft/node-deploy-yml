@@ -1,0 +1,2 @@
+dep1-2: dep1-2
+all: dep1-2

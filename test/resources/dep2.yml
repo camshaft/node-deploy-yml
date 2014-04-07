@@ -1,0 +1,6 @@
+requires:
+  - dep2-2.yml
+  - dep2-1.yml
+
+dep2: dep2
+all: dep2

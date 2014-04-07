@@ -1,0 +1,33 @@
+{
+  "name": "deploy-yml",
+  "version": "0.1.0",
+  "description": "simple deployment configuration format",
+  "main": "index.js",
+  "scripts": {
+    "test": "NODE_ENV=test ./node_modules/.bin/mocha"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/camshaft/node-deploy-yml.git"
+  },
+  "keywords": [
+    "deploy",
+    "yml",
+    "heroku"
+  ],
+  "author": "Cameron Bytheway <bytheway.cameron@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/camshaft/node-deploy-yml/issues"
+  },
+  "homepage": "https://github.com/camshaft/node-deploy-yml",
+  "dependencies": {
+    "batch": "^0.5.0",
+    "js-yaml": "^3.0.2",
+    "debug": "^0.8.0"
+  },
+  "devDependencies": {
+    "should": "^3.2.0",
+    "mocha": "^1.18.2"
+  }
+}

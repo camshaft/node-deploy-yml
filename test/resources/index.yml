@@ -1,0 +1,7 @@
+requires:
+  - dep2.yml
+  - dep1.yml
+
+index: index
+
+all: index
