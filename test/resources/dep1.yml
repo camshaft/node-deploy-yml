@@ -4,3 +4,5 @@ requires:
 
 dep1: dep1
 all: dep1
+
+env: ./test/config/1

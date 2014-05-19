@@ -50,4 +50,20 @@ describe('deploy-yml', function() {
       });
     });
   });
+
+  describe('env', function() {
+    it('should resolve the env vars', function(done) {
+      this.timeout(0);
+      d.env('prod', function(err, env) {
+        if (err) return done(err);
+        should.exist(env);
+        env.should.eql({
+          '1': 'true',
+          'ALL': 'index',
+          'INDEX': 'true'
+        });
+        done();
+      });
+    });
+  });
 });

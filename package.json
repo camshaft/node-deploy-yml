@@ -24,7 +24,9 @@
   "dependencies": {
     "batch": "^0.5.0",
     "js-yaml": "^3.0.2",
-    "debug": "^0.8.0"
+    "debug": "^0.8.0",
+    "utils-merge": "^1.0.0",
+    "env-builder-cli": "^0.1.0"
   },
   "devDependencies": {
     "should": "^3.2.0",

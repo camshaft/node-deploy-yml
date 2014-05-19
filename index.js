@@ -6,8 +6,16 @@ var debug = require('debug')('deploy-yml');
 var debugParse = require('debug')('deploy-yml:parser');
 var Batch = require('batch');
 var yaml = require('js-yaml').safeLoad;
+var merge = require('utils-merge');
+var builder = require('env-builder-cli');
 
 exports = module.exports = Deploy;
+
+/**
+ * Load configuration state
+ *
+ * @param {String} path
+ */
 
 function Deploy(path) {
   if (!(this instanceof Deploy)) return new Deploy(path);
@@ -15,6 +23,12 @@ function Deploy(path) {
   this._resolvers = [];
   this._cache = {};
 }
+
+/**
+ * Use a resolver
+ *
+ * @param {Function} fn
+ */
 
 Deploy.prototype.use = function(fn) {
   this._resolvers.push(fn);
@@ -37,37 +51,37 @@ Deploy.prototype.fetch = function(arr, fn) {
 
 // concat
 Deploy.prototype.buildpacks = function(fn) {
-  this.all('buildpacks', fn, true);
+  return this.all('buildpacks', fn, true);
 };
 
 // concat
 Deploy.prototype.resources = function(fn) {
-  this.all('drain', fn);
+  return this.all('drain', fn);
 };
 
 // concat
 Deploy.prototype.collaborators = function(fn) {
-  this.all('collaborators', fn);
+  return this.all('collaborators', fn);
 };
 
 // concat
 Deploy.prototype.drain = function(fn) {
-  this.all('drain', fn);
+  return this.all('drain', fn);
 };
 
 // concat
 Deploy.prototype.types = function(fn) {
-  this.all('types', fn);
+  return this.all('types', fn);
 };
 
 // concat
 Deploy.prototype.regions = function(fn) {
-  this.all('regions', fn);
+  return this.all('regions', fn);
 };
 
 // concat
 Deploy.prototype.labs = function(fn) {
-  this.all('labs', fn);
+  return this.all('labs', fn);
 };
 
 // override or concat
@@ -76,39 +90,55 @@ Deploy.prototype.env = function(env, fn) {
     fn = env;
     env = this.defaultEnv || 'prod';
   }
+  var self = this;
   this.fetch(['app', 'types'], function(err, res) {
     if (err) return fn(err);
     var app = res[0];
-    var types = res[1];
-    // TODO use env-builder-cli
+    var types = res[1] || [];
 
-    fn(null, {});
+    var appName = app || 'global';
+
+    var key = appName + '|' + types.join(',') + '|' + env;
+    if (self._cache[key]) return fn(null, self._cache[key]);
+
+    self.all('env', function(err, envs) {
+      if (typeof envs === 'undefined') return fn(null, {});
+
+      buildEnv(env, types, appName, envs, self, function(err, ENV) {
+        if (err) return fn(err);
+        self._cache[key] = ENV;
+        fn(null, ENV);
+      })
+    });
   });
+  return this;
 };
 
 // override
 Deploy.prototype.app = function(fn) {
-  this.first('error-pages', fn);
+  return this.first('app', fn);
 };
 
 // override
 Deploy.prototype.domains = function(fn) {
-  this.first('error-pages', fn);
+  return this.first('domains', fn);
 };
 
 // override
 Deploy.prototype.errorPages = function(fn) {
-  this.first('error-pages', fn);
+  return this.first('error-pages', fn);
 };
 
 // generic functions
 
 Deploy.prototype.first = function(name, fn) {
   getOverride(name, this, fn);
+  return this;
 };
 
 Deploy.prototype.all = function(name, fn, single) {
   getAll(name, this, fn, single);
+  return this;
 };
 
 // concats have to go all the way down the chain
@@ -234,4 +264,21 @@ function resolve(path, parent, deploy, fn) {
 function parse(str, path) {
   debugParse('parsing ' + path, str);
   return yaml(str, {filename: path}) || {};
+}
+
+function buildEnv(env, types, app, envs, deploy, fn) {
+  debug('building env vars', env, types, app, envs);
+  var ENV = {};
+
+  function pass(i) {
+    if (i === envs.length) return fn(null, ENV);
+    var path = envs[i];
+    debug('pulling env', path);
+    builder(path, env, types, app, function(err, locals) {
+      if (err) return fn(err);
+      merge(ENV, locals);
+      pass(i + 1);
+    });
+  }
+  pass(0);
 }

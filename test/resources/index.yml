@@ -5,3 +5,5 @@ requires:
 index: index
 
 all: index
+
+env: ./test/config/index
