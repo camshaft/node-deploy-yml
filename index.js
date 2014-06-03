@@ -4,7 +4,7 @@
 
 var debug = require('debug')('deploy-yml');
 var debugParse = require('debug')('deploy-yml:parser');
-var Batch = require('batch');
+var each = require('p-each');
 var yaml = require('js-yaml').safeLoad;
 var merge = require('utils-merge');
 var builder = require('env-builder-cli');
@@ -37,54 +37,41 @@ Deploy.prototype.use = function(fn) {
 
 Deploy.prototype.fetch = function(arr, fn) {
   var self = this;
-  var batch = new Batch();
-
-  arr.forEach(function(key) {
-    batch.push(function(cb) {
-      self[key](cb);
-    });
-  });
-
-  batch.end(fn);
+  each(arr, function(key, cb) {
+    if (self[key]) self[key](cb);
+    else self.first(key.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase(), cb);
+  }, fn);
   return this;
 };
 
-// concat
 Deploy.prototype.buildpacks = function(fn) {
   return this.all('buildpacks', fn, true);
 };
 
-// concat
 Deploy.prototype.resources = function(fn) {
   return this.all('resources', fn);
 };
 
-// concat
 Deploy.prototype.collaborators = function(fn) {
   return this.all('collaborators', fn);
 };
 
-// concat
 Deploy.prototype.drain = function(fn) {
   return this.all('drain', fn);
 };
 
-// concat
 Deploy.prototype.types = function(fn) {
   return this.all('types', fn);
 };
 
-// concat
 Deploy.prototype.regions = function(fn) {
   return this.all('regions', fn);
 };
 
-// concat
 Deploy.prototype.labs = function(fn) {
   return this.all('labs', fn);
 };
 
-// override or concat
 Deploy.prototype.env = function(env, fn) {
   if (typeof env === 'function') {
     fn = env;
@@ -114,17 +101,14 @@ Deploy.prototype.env = function(env, fn) {
   return this;
 };
 
-// override
 Deploy.prototype.app = function(fn) {
   return this.first('app', fn);
 };
 
-// override
 Deploy.prototype.domains = function(fn) {
   return this.first('domains', fn);
 };
 
-// override
 Deploy.prototype.errorPage = function(fn) {
   return this.first('error-page', fn);
 };
@@ -175,15 +159,9 @@ function getTree(name, deploy, fn, path, parent) {
     if (!deps) return fn(null, val);
     if (typeof deps === 'string') deps = [deps];
 
-    var batch = new Batch();
-
-    deps.forEach(function(dep) {
-      batch.push(function(cb) {
-        getTree(name, deploy, cb, dep, path);
-      });
-    });
-
-    batch.end(function(err, res) {
+    each(deps, function(dep, cb) {
+      getTree(name, deploy, cb, dep, path);
+    }, function(err, res) {
       if (err) return fn(err);
       val.deps = res;
       fn(null, val);
@@ -201,15 +179,9 @@ function getOverride(name, deploy, fn, path, parent) {
     if (!deps) return fn(null);
     if (typeof deps === 'string') deps = [deps];
 
-    var batch = new Batch();
-
-    deps.forEach(function(dep) {
-      batch.push(function(cb) {
-        getOverride(name, deploy, cb, dep, path);
-      });
-    });
-
-    batch.end(function(err, res) {
+    each(deps, function(dep, cb) {
+      getOverride(name, deploy, cb, dep, path);
+    }, function(err, res) {
       if (err) return fn(err);
       var val;
       for (var i = res.length - 1; i >= 0; i--) {
