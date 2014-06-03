@@ -40,8 +40,8 @@ Deploy.prototype.fetch = function(arr, fn) {
   var batch = new Batch();
 
   arr.forEach(function(key) {
-    batch.push(function(fn) {
-      self[key](fn);
+    batch.push(function(cb) {
+      self[key](cb);
     });
   });
 
@@ -56,7 +56,7 @@ Deploy.prototype.buildpacks = function(fn) {
 
 // concat
 Deploy.prototype.resources = function(fn) {
-  return this.all('drain', fn);
+  return this.all('resources', fn);
 };
 
 // concat
@@ -125,8 +125,8 @@ Deploy.prototype.domains = function(fn) {
 };
 
 // override
-Deploy.prototype.errorPages = function(fn) {
-  return this.first('error-pages', fn);
+Deploy.prototype.errorPage = function(fn) {
+  return this.first('error-page', fn);
 };
 
 // generic functions
@@ -159,8 +159,8 @@ function flatten(obj, acc) {
   if (obj.deps) obj.deps.forEach(function(dep) {
     flatten(dep, acc);
   });
-  if (Array.isArray(obj.value)) acc.push.apply(acc, obj.value);
-  if (typeof obj.value !== 'undefined') acc.push(obj.value);
+  if (Array.isArray(obj.value)) return acc.splice.apply(acc, [0, 0].concat(obj.value));
+  if (typeof obj.value !== 'undefined') acc.splice(0, 0, obj.value);
 }
 
 function getTree(name, deploy, fn, path, parent) {
@@ -236,8 +236,12 @@ function resolve(path, parent, deploy, fn) {
   function pass(i) {
     var resolver = deploy._resolvers[i];
     if (!resolver) {
-      delete deploy._cache[path];
-      return fn(new Error('Could not resolve ' + path));
+      var err = new Error('Could not resolve ' + path);
+      deploy._cache[path] = err;
+      listeners.forEach(function(listener) {
+        try { listener(err); } catch(e) {}
+      });
+      return fn(err);
     }
 
     try {
@@ -250,10 +254,10 @@ function resolve(path, parent, deploy, fn) {
     function handle(err, obj) {
       if (err) return pass(i + 1);
       if (typeof obj === 'string') obj = parse(obj, path);
+      deploy._cache[path] = obj;
       listeners.forEach(function(listener) {
         try { listener(null, obj); } catch(e) {}
       });
-      deploy._cache[path] = obj;
       debug('resolved ' + path, obj);
       fn(null, obj);
     }
